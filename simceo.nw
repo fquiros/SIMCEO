@@ -33,7 +33,7 @@
 % Matlab--ZMQ\footnote{\url{https://github.com/fagg/matlab-zmq}} is a Matlab wrapper for ZeroMQ.
 % ZeroMQ \footnote{\url{http://zeromq.org/}} is the messaging library used for the communications between SIMCEO client and server.
 % Both Matlab--ZMQ and ZeroMQ are shipped pre--compiled with SIMCEO. 
-% You need however to add, to the Matlab search path, the path to ZeroMQ.
+% You need however to add, to the Matlab search path, the path t o ZeroMQ.
 % To do so, move Matlab current folder to SIMCEO folder and at the Matlab prompt enter:
 % \\\texttt{>> addpath([pwd,'/matlab-zmq/your-os/lib/'])}\\\texttt{>> savepath}\\
 % where \texttt{your-os} is either \texttt{unix}, \texttt{mac} \texttt{windows7} or \texttt{windows10}.
@@ -96,11 +96,12 @@ import pickle
 import zlib
 import logging
 import copy
+from numpy.linalg import norm
 
 logging.basicConfig()
 
 try:
-    from IM.Telescope import FEM
+    from IM.Telescope import FEM, WindLoad
 except:
     logging.warning('IM package not found!')
 
@@ -285,6 +286,10 @@ def __getitem__(self,key):
         if not hasattr(self,'fem'):
             self.fem = FEM()
         return self.fem
+    elif key=="WindLoad":
+        if not hasattr(self,'winds'):
+            self.winds = WindLoad()
+        return self.winds
     else:
         raise KeyError("Available keys are: GMT, ATM or OP")
 @ 
@@ -401,7 +406,8 @@ The message that triggers the call to the \emph{Update} method is
 @
 <<SGMT>>=
     def Update(self, mirror=None, inputs=None):
-        state = copy.deepcopy(self.state0)
+        self.logger.debug("Updating %s", mirror)
+        state = self.gmt.state
         for dof in inputs:
             if dof=='Rxy':
                 data = np.zeros((7,3))
@@ -414,7 +420,8 @@ The message that triggers the call to the \emph{Update} method is
             else:
                 data = np.asarray( inputs[dof], order='C', dtype=np.float64 )
             #data = np.transpose( np.reshape( data , (-1,7) ) )
-            state[mirror][dof][:] += data
+            self.logger.debug(" . DOF: %s=|%s|", dof, np.array_str(norm(data,axis=1)))
+            state[mirror][dof][:] = self.state0[mirror][dof][:] + data
             """
             if key=="TxyzRxyz":
                 state[mirror]['Txyz'][:] += data[:,:3].copy()
@@ -1167,8 +1174,18 @@ def associate(self,prm):
     elif 'FEM' in prm:
         self.msg['class_id'] = 'FEM'
         self.msg_args['Start'].update(prm['FEM']['build'])
-        self.msg_args['Init'].update({'dt':self.tau})
+        self.msg_args['Init'].update({'dt':self.tau,
+                                      'inputs':list(self.inputs.keys()),
+                                      'outputs':list(self.outputs.keys())})
         self.msg_args['Init'].update(prm['FEM']['reduction'])
+        self.msg_args['Update'].update(\
+                {k_i:v_i.data for k_i,v_i in self.inputs.items()})
+        self.msg_args['Outputs']['outputs'] += [k_o for k_o in self.outputs]
+    elif 'wind loads' in prm:
+        self.msg['class_id'] = 'WindLoad'
+        self.msg_args['Start'].update(prm['wind loads'])
+        self.msg_args['Start'].update({'fs':1/self.tau})
+        self.msg_args['Outputs']['outputs'] += [k_o for k_o in self.outputs]
     elif 'source' in prm:
         self.msg['class_id'] = 'OP'
         if isinstance(prm['source']['zenith'],dict):
@@ -1185,7 +1202,6 @@ def associate(self,prm):
                                        'sensor_args':{},
                                        'calibration_source_args':None,
                                        'calibrate_args':None})
-
         if 'source_attributes' in prm:
             src_attr = prm['source_attributes']
             print(src_attr)
@@ -1456,7 +1472,7 @@ def output(self,step):
             m = 'Outputs'
             if self.msg_args[m]['outputs']:
                 <<client-server exchange>>
-                self.logger.debug("Reply: %s",reply)
+                #self.logger.debug("Reply: %s",reply)
                 for k,v in self.outputs.items():
                     if (step-self.delay)%v.sampling_rate==0:
                         self.logger.debug('Outputing %s!',k)

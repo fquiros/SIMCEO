@@ -1,0 +1,11 @@
+source:
+  photometric_band: R+I
+  zenith: 0
+  azimuth: 0
+  magnitude: 0
+  rays_box_size: 25.5000
+  rays_box_sampling: 321
+  rays_origin: [0,0,25]
+sensor:
+  class: null
+

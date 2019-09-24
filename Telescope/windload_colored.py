@@ -7,6 +7,8 @@ import s3fs
 from scipy.io import loadmat
 import logging
 
+logging.basicConfig()
+
 inputs_name = {'top-end':['OSS_TopEnd_6F','MC_M2_TE_6F','MC_M2_TE_6F'],
                'truss':['OSS_Truss_6F']*3,
                'GIR':['OSS_GIR_6F']*3,

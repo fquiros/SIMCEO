@@ -2,14 +2,16 @@ simulation:
   sampling frequency: 1 # [Hertz]
   duration: 200 # [seconds]
   server:
-    IP: 34.220.132.129 #18.237.89.108
-#    IP: 127.0.0.1
+#    IP: 34.220.132.129 #18.237.89.108
+    IP: 127.0.0.1
 drivers:
-#  M1:
-#    sampling_rate: 1 # [sample]
-#    inputs:
-#      TxyzRxyz:
-#        size: [7,6]
+  M1:
+    sampling_rate: 1 # [sample]
+    inputs:
+      Txyz:
+        size: [7,3]
+      Rxyz:
+        size: [7,3]
   M2:
     sampling_rate: 1 # [sample]
     inputs:

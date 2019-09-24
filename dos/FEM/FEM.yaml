@@ -1,22 +1,7 @@
 FEM:
   build:
-    second_order_filename: '/home/rconan/drobo/Christoph/Rod/Seismic Isolator model variations 2019-08-15/20190723_new_100p_lateral_100p_axial_SI_30_el_0_az_locked/modal_state_space_model.py.mat' #'/home/rconan/DATA/20190815_new_100p_lateral_100p_axial_SI_0_el_0_az_zero.mat'
+    second_order_filename: '/home/rconan/drobo/Christoph/Rod/Seismic Isolator model variations 2019-08-15/20190724_new_100p_lateral_100p_axial_SI_30_el_0_az_zero/modal_state_space_model.py.mat' #'/home/rconan/DATA/20190815_new_100p_lateral_100p_axial_SI_0_el_0_az_zero.mat'
+    reorder_RBM: false
   reduction:
     hsv_rel_threshold: 1.0e-3
     start_idx: 3
-COMMENTS:
-  inputs:
-    - OSS_AzDrive_F
-    - OSS_ElDrive_F
-    - OSS_GIRDrive_F
-    - MC_M2_PZT_S1_F
-    - MC_M2_PZT_S2_F
-    - MC_M2_PZT_S3_F
-    - MC_M2_PZT_S4_F
-    - MC_M2_PZT_S5_F
-    - MC_M2_PZT_S6_F
-    - MC_M2_PZT_S7_F
-  outputs:
-    - OSS_AzDrive_D
-    - OSS_ElDrive_D
-    - OSS_GIRDrive_D

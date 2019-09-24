@@ -16,24 +16,22 @@ sensor:
     N_SIDE_LENSLET: 48 
     d: 0.53125 # [meter], rays_box_size/N_SIDE_LENSLET
     N_GS: 3
-    intensityThreshold: 0.0
   calibrate_args:
-    threshold: 0.5
+    threshold: 0.0
 interaction matrices: 
-  calibrations:
-    M12_RBM:
-      method_id: AGWS_calibrate
-      args:
-        coupled: true
-        withM1: false
-        filterMirrorRotation: true
-        stroke: [1.0e-6,1.0e-6,1.0e-6,1.0e-6,1.0e-6]
-        fluxThreshold: 0.5
-        includeBM: false
-  pseudo_inverse:
-    n_threshold: [1] #[2,2,2,2,2,2,0]
-    insert_zeros: [41] #[null,null,null,null,null,null,[5,10]]
-#  filename: AGWS_decoupled_rotfilt
+    calibrations:
+      M12_RBM:
+        method_id: AGWS_calibrate
+        args:
+          decoupled: true
+          filterMirrorRotation: true
+          stroke: [1.0e-6,1.0e-6,1.0e-6,1.0e-6,1.0e-6]
+          fluxThreshold: 0.5
+          includeBM: false
+    pseudo_inverse:
+      n_threshold: [2,2,2,2,2,2,0]
+      insert_zeros: [null,null,null,null,null,null,[5,10]]
+      #filename: AGWS_decoupled_rotfilt
 COMMENTS:
   interaction matrices: 
     calibrations:
@@ -41,11 +39,12 @@ COMMENTS:
         method_id: AGWS_calibrate
         args:
           coupled: true
-          filterMirrorRotation: false
+          withM1: false
+          filterMirrorRotation: true
           stroke: [1.0e-6,1.0e-6,1.0e-6,1.0e-6,1.0e-6]
           fluxThreshold: 0.5
           includeBM: false
-    pseudo_inverse:
-      n_threshold: [1]
-      insert_zeros: [[41,82]]
-      filename: AGWS_coupled_rotfilt
+      pseudo_inverse:
+        n_threshold: [6] #[2,2,2,2,2,2,0]
+        insert_zeros: [41] #[null,null,null,null,null,null,[5,10]]
+    #  filename: AGWS_decoupled_rotfilt

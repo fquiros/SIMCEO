@@ -101,9 +101,9 @@ from numpy.linalg import norm
 logging.basicConfig()
 
 try:
-    from IM.Telescope import FEM, WindLoad
+    from Telescope import FEM, WindLoad
 except:
-    logging.warning('IM package not found!')
+    logging.warning('Telescope package not found!')
 
 
 SIMCEOPATH = os.path.abspath(os.path.dirname(__file__))
@@ -960,7 +960,7 @@ A [[dos]] simulation is defined with a parameter file [[dos.yaml]].
 from . import mpc_driver
 from . import control
 from . import driver
-from .dos import DOS
+from .dos import DOS, Logs
 @
 \subsection{Simulation}
 \label{sec:simulation}
@@ -1014,6 +1014,7 @@ class DOS(threading.Thread):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(verbose)
 
+        self.DOS_REPO = path_to_config_dir
         cfg_file = os.path.join(path_to_config_dir,'dos.yaml')
         self.logger.info('Reading config from %s',cfg_file)
         with open(cfg_file) as f:
@@ -1041,7 +1042,7 @@ class DOS(threading.Thread):
             self.N_SAMPLE))
 
         if show_timing>0:
-            self.diagram(filename=path_to_config_dir.replace('/','_'),format='png')
+            self.diagram(filename=os.path.join(self.DOS_REPO,'timing'),format='png')
 
     <<starting the simulation>>
 
@@ -1059,11 +1060,15 @@ class DOS(threading.Thread):
     def pctComplete(self):
         return round(100*self.__k_step/(self.N_SAMPLE-1))
 @
+
+\subsubsection{Driver instanciation}
+\label{sec:driver-instanciation}
+
 Each device must have a corresponding parameter file in the same directory than
 the configuration file.
 <<check parameter file existence>>=
 tau = 1/self.cfg['simulation']['sampling frequency']
-self.logs = Logs(tau)
+self.logs = Logs(tau,logs_repo=self.DOS_REPO)
 self.drivers = {}
 for d,v in self.cfg['drivers'].items():
     prm_file = os.path.join(path_to_config_dir,d)
@@ -1113,6 +1118,10 @@ for d,v in self.cfg['drivers'].items():
 %       mode: segment tip-tilt
 %       stroke: 1e-6
 % @
+
+\subsubsection{IO linking}
+\label{sec:io-linking}
+
 Once each driver is instantiated, their inputs and outputs are tied
 <<linking the drivers IO>>=
 for k_d in self.drivers:
@@ -1137,6 +1146,10 @@ def tie(self,drivers):
         self.data = drivers[d].inputs[io].data
         self.size = self.data.shape
 @ %def tie
+
+\subsubsection{Device association}
+\label{sec:dev-assoc}
+
 The device parameters are loaded from the device parameter file and the device
 is associated to the driver
 <<device to driver association>>=
@@ -1232,6 +1245,10 @@ def associate(self,prm):
 @
 Next we check if an atmosphere is define
 @
+
+\subsubsection{Simulation execution}
+\label{sec:sim-exec}
+
 Once the parameters are loaded and the drivers linked, we call the drivers [[start]]
 <<starting the drivers>>=
 self.__start = map(lambda x: x.start(), self.drivers.values())
@@ -1578,6 +1595,7 @@ from . import control
 <<control.py>>=
 <<control imports>>
 from .mpc_driver import MPC
+from .MountController import Mount
 import numpy as np
 class System:
     def __init__(self,**kwargs):
@@ -1586,7 +1604,7 @@ class System:
                                       kwargs['transfer function']['denom'])
         elif 'zeros poles gain' in kwargs:
             self.system = signal.dlti(kwargs['transfer function']['zeros'],
-                                      kwargs['transfer function']['poles'],
+                                      Kwargs['transfer function']['poles'],
                                       kwargs['transfer function']['gain'])
         else:
             raise Exception("System should be of the type "+\
@@ -1660,8 +1678,9 @@ class Entry:
         values = np.vstack(self.data) if self.data[0].ndim<2 else np.dstack(self.data)
         return time,values
 class Logs:
-    def __init__(self,sampling_time):
+    def __init__(self,sampling_time=0,logs_repo=''):
         self.sampling_time = sampling_time
+        self.logs_repo = logs_repo
         self.entries = {}
     def add(self,driver,output,decimation,delay=0):
         if driver in self.entries:
@@ -1682,6 +1701,19 @@ class Logs:
         else:
             line = ["The 'logs' has no entries!"]
         return "\n".join(line)
+    def dump(self):
+        filename = os.path.join(self.logs_repo,'logs.pickle')
+        data = {'sampling_time':self.sampling_time}
+        data.update(self.entries)
+        with open(filename,'wb') as f:
+            pickle.dump(data,f)
+    def load(self):
+        filename = os.path.join(self.logs_repo,'logs.pickle')
+        with open(filename,'rb') as f:
+            data = pickle.load(f)
+        self.sampling_time = data['sampling_time']
+        data.pop('sampling_time')
+        self.entries.update(data)
     @property
     def N_entries(self):
         return sum([len(_) for _ in self.entries.values()])

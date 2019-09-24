@@ -23,6 +23,12 @@ drivers:
         lien: [FEM,MC_M2_lcl_force_6F]
   FEM:
     inputs:
+      OSS_AzDrive_F:
+        size: 8
+      OSS_ElDrive_F:
+        size: 8
+      OSS_GIRDrive_F:
+        isze: 4
       OSS_M1_lcl_6F:
         size: 42
       OSS_Cell_lcl_6F:
@@ -38,6 +44,12 @@ drivers:
       MC_M2_lcl_force_6F:
         size: 42
     outputs:
+      OSS_AzDrive_D:
+        size: 8
+      OSS_ElDrive_D:
+        size: 8
+      OSS_GIRDrive_D:
+        size: 4
       OSS_M1_lcl:
         size: 42
         logs:
@@ -46,114 +58,20 @@ drivers:
         size: 42
         logs:
           decimation: 1
-  M1:
-    inputs:
-      Txyz:
-        size: [7,3]
-      Rxyz:
-        size: [7,3]
-  M2:
-    inputs:
-      Txyz:
-        size: [7,3]
-      Rxyz:
-        size: [7,3]
-  router:
-    server: false
-    inputs:
-      M1 RBM:
-        lien: [FEM,OSS_M1_lcl]
-      M2_RBM:
-        lien: [FEM,MC_M2_lcl_6D]
-    outputs:
-      M1 Txyz:
-        lien: [M1,Txyz]
-        logs:
-          decimation: 1
-      M1 Rxyz:
-        lien: [M1,Rxyz]
-        logs:
-          decimation: 1
-      M2 Txyz:
-        lien: [M2,Txyz]
-        logs:
-          decimation: 1
-      M2 Rxyz:
-        lien: [M2,Rxyz]
-        logs:
-          decimation: 1
-  science:
-    outputs:
-      wfe_rms:
-        size: 1
-        logs:
-          decimation: 1
-      tiptilt:
-        size: 2
-        logs:
-          decimation: 1
-      segment_tiptilt:
-        size: 14
-        logs:
-          decimation: 1
 COMMENTS:
   Mount:
+    server: false
     inputs:
-      elevation encoder:
-        lien: [FEM,OSS_ElDrive_D]
-      azimuth encoder:
-        lien: [FEM, OSS_AzDrive_D]
-      GIR encoder:
+      OSS_AzDrive_D:
+        lien: [FEM,OSS_AzDrive_D]
+      OSS_ElDrive_D:
+          lien: [FEM,OSS_ElDrive_D]
+      OSS_GIRDrive_D:
         lien: [FEM,OSS_GIRDrive_D]
     outputs:
-      elevation drive:
-        lien: [FEM,OSS_ElDrive_F]
-      azimuth drive:
-        lien: [FEM, OSS_AzDrive_F]
-      GIR drive:
-        lien: [FEM,OSS_GIRDrive_F]
-  FEM:
-    inputs:
       OSS_AzDrive_F:
-        size: 8
+        lien: [FEM,OSS_AzDrive_F]
       OSS_ElDrive_F:
-        size: 8 
+        lien: [FEM,OSS_ElDrive_F]
       OSS_GIRDrive_F:
-        size: 4 
-      OSS_M1_lcl_6F:
-        size: 42
-      OSS_Cell_lcl_6F:
-        size: 42
-      OSS_CRING_6F:
-        size: 18
-      OSS_TopEnd_6F:
-        size: 6
-      OSS_GIR_6F:
-        size: 6
-      OSS_Truss_6F:
-        size: 36
-      MC_M2_lcl_force_6F:
-        size: 42
-      MC_M2_MacroCell_F_6d:
-        size: 6
-      MC_M2_PZT_S1_F:
-        size: 6
-      MC_M2_PZT_S2_F:
-        size: 6
-      MC_M2_PZT_S3_F:
-        size: 6
-      MC_M2_PZT_S4_F:
-        size: 6
-      MC_M2_PZT_S5_F:
-        size: 6
-      MC_M2_PZT_S6_F:
-        size: 6
-      MC_M2_PZT_S7_F:
-        size: 6
-    outputs:
-      OSS_AzDrive_D:
-        size: 8
-      OSS_ElDrive_D:
-        size: 8
-      OSS_GIRDrive_D:
-        size: 4
+        lien: [FEM,OSS_GIRDrive_F]

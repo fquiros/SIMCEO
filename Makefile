@@ -1,4 +1,4 @@
-NOWEBPATH	= /usr
+NOWEBPATH	= /usr/local/Cellar/noweb/2.11b
 WEAVE   	= $(NOWEBPATH)/bin/noweave
 TANGLE    	= $(NOWEBPATH)/bin/notangle
 

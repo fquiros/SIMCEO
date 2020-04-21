@@ -130,9 +130,9 @@ RUN                 =
 
 ARFLAGS              = ruvs
 CFLAGS               = -c $(C_STANDARD_OPTS) -fPIC \
-                       -O3 -fno-loop-optimize -fno-aggressive-loop-optimizations
+                       -O3 # -fno-loop-optimize -fno-aggressive-loop-optimizations
 CPPFLAGS             = -c $(CPP_STANDARD_OPTS) -fPIC \
-                       -O3 -fno-loop-optimize -fno-aggressive-loop-optimizations
+                       -O3 # -fno-loop-optimize -fno-aggressive-loop-optimizations
 CPP_LDFLAGS          = -Wl,-rpath,"$(MATLAB_ARCH_BIN)",-L"$(MATLAB_ARCH_BIN)"
 CPP_SHAREDLIB_LDFLAGS  = -shared -Wl,-rpath,"$(MATLAB_ARCH_BIN)",-L"$(MATLAB_ARCH_BIN)" -Wl,--no-undefined
 DOWNLOAD_FLAGS       =

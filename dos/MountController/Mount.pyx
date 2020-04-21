@@ -16,8 +16,9 @@ import numpy as np
 
 class Mount:
 
-    def __init__(self,reference=np.zeros(3)):
+    def __init__(self,reference=np.zeros(3),static_ref=True):
         self.reference = reference
+        self.static_ref = static_ref
         self.__yout = np.zeros(0)
 
     def init(self):
@@ -29,9 +30,14 @@ class Mount:
     def update(self,np.ndarray u):
         #u = np.single(u.ravel())
         cdef double[:] __u
-        cdef int k
+        cdef int k, k0
         __u = np.ravel(np.asarray(u))
-        for k in range(20):
+        k0 = 0
+        if not self.static_ref:
+            for k in range(3):
+                Mount_U.Reference[k] = __u[k]
+            k0 = 3
+        for k in range(k0,20):
             Mount_U.Feedback[k] = __u[k]
         Mount_step()
 

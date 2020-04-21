@@ -1,0 +1,64 @@
+source:
+  photometric_band: R+I
+  zenith:
+    value: [8, 8, 8]
+    units: arcmin
+  azimuth:
+    value: [0, 120, 240]
+    units: degree
+  magnitude: [16, 16, 16]
+  fwhm: 3.16
+  rays_box_size: 25.5
+  rays_box_sampling: 769
+  rays_origin: [0, 0, 25]
+sensor:
+  class: ShackHartmann
+  args: {N_SIDE_LENSLET: 48, N_PX_LENSLET: 16, d: 0.53125, DFT_osf: 2, N_PX_IMAGE: 24,
+    BIN_IMAGE: 3, N_GS: 3, readOutNoiseRms: 0.5, noiseFactor: 1.4142, photoElectronGain: 0.63,
+    exposureTime: 30, intensityThreshold: 0.0}
+  calibrate_args: {threshold: 0.0}
+interaction matrices:
+  calibrations:
+    M12_RBM:
+      method_id: AGWS_calibrate
+      args:
+        decoupled: true
+        withM1: true
+        filterMirrorRotation: false
+        stroke: [1e-06, 1e-06, 1e-06, 1e-06, 1e-06]
+        fluxThreshold: 0.5
+        includeBM: true
+  pseudo_inverse:
+    n_threshold: [2, 2, 2, 2, 2, 2, 0]
+    insert_zeros:
+    - 
+    - 
+    - 
+    - 
+    - 
+    - 
+    - [5, 10]
+  filename: GeomSH_full_dec_0p5fluxTh_27BM
+COMMENTS:
+  interaction matrices:
+    calibrations:
+      M12_RBM:
+        method_id: AGWS_calibrate
+        args:
+          decoupled: true
+          withM1: true
+          filterMirrorRotation: false
+          stroke: [1e-06, 1e-06, 1e-06, 1e-06, 1e-06]
+          fluxThreshold: 0.5
+          includeBM: true
+      pseudo_inverse:
+        n_threshold: [2, 2, 2, 2, 2, 2, 0]
+        insert_zeros:
+        - 
+        - 
+        - 
+        - 
+        - 
+        - 
+        - [5, 10]
+      filename: GeomSH_full_dec_0p5fluxTh_27BM

@@ -1,0 +1,11 @@
+edge sensors:
+  error_1sig_per_m: 125.0e-09
+interaction matrices: 
+  calibrations:
+    M1RBM:
+      args:
+        stroke: 1.0e-06
+  pseudo_inverse:
+    n_threshold:
+      - 6
+  filename: M1ES

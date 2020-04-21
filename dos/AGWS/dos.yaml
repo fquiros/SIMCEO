@@ -1,52 +1,49 @@
 simulation:
   sampling frequency: 1 # [Hertz]
-  duration: 200 # [seconds]
+  duration: 10 # [seconds]
   server:
 #    IP: 34.220.132.129 #18.237.89.108
     IP: 127.0.0.1
 drivers:
   M1:
-    sampling_rate: 1 # [sample]
     inputs:
       Txyz:
         size: [7,3]
       Rxyz:
         size: [7,3]
   M2:
-    sampling_rate: 1 # [sample]
     inputs:
       Txyz:
         size: [7,3]
       Rxyz:
         size: [7,3]
   wfs48:
-    delay: 0 # [sample]
-    sampling_rate: 1 # [sample]
     outputs:
       M12_RBM:
-        sampling_rate: 1 # [sample]
-        size: 42
+        size: 84
         logs:
           decimation: 1
   AGWS_ctrlr:
     server: false
-    sampling_rate: 1 # [sample]
     inputs:
 #      wfs24 data:
 #        lien: [wfs24,M2TT]
       wfs48 data:
         lien: [wfs48,M12_RBM]
+    shape: [7,12] 
+    split:
+      indices_or_sections: 4
+      axis: 1
     outputs:
-#      M1 command:
-#        sampling_rate: 1 # [sample]
-#        lien: [M1,TxyzRxyz] 
+      M1 Txyz:
+        lien: [M1,Txyz] 
+      M1 Rxyz:
+        lien: [M1,Rxyz] 
       M2 Txyz:
-        sampling_rate: 1 # [sample]
         lien: [M2,Txyz] 
         logs:
           decimation: 1
       M2 Rxyz:
-        sampling_rate: 1 # [sample]
         lien: [M2,Rxyz] 
         logs:
           decimation: 1
@@ -54,6 +51,10 @@ drivers:
     outputs:
       wfe_rms:
         size: 1
+        logs:
+          decimation: 1
+      segment_wfe_rms:
+        size: 7
         logs:
           decimation: 1
       tiptilt:
@@ -64,6 +65,8 @@ drivers:
         size: 14
         logs:
           decimation: 1
+      piston:
+        size: 7
 COMMENTS:
   wfs24:
     delay: 200 # [sample]

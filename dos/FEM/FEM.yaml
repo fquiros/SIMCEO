@@ -1,6 +1,6 @@
 FEM:
   build:
-    second_order_filename: '/home/rconan/drobo/Christoph/Rod/Seismic Isolator model variations 2019-08-15/20190724_new_100p_lateral_100p_axial_SI_30_el_0_az_zero/modal_state_space_model.py.mat' #'/home/rconan/DATA/20190815_new_100p_lateral_100p_axial_SI_0_el_0_az_zero.mat'
+    second_order_filename: dos/FEM/20190724_new_100p_lateral_100p_axial_SI_30_el_0_az_zero.mat
     reorder_RBM: false
   reduction:
     hsv_rel_threshold: 1.0e-3

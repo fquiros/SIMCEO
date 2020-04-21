@@ -27,3 +27,14 @@ sandbox
 *.svg
 /M1
 *.zip
+ReconstructorM.pickle
+ES2M1RBM.pickle
+*init__.py
+timing
+simceo.code-workspace
+testDT
+SHAcO_qp.pickle
+SHAcO.pickle
+simceo_refman.toc
+dos/SHWFS_ES_M1S7Rzissue
+old_notebooks

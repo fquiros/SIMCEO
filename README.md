@@ -257,12 +257,20 @@ sensor:
     N_SIDE_LENSLET: # the size of the lenslet array
     N_PX_LENSLET: # the number of pixel per lenslet
     d: # the lenslet array pitch [rays_box_size/N_SIDE_LENSLET]
+    DFT_osf: # the discrete Fourier transform oversampling factor (2 for Nyquist sampling, the detector pixel scale is (wavelength/d)x(BIN_IMAGE/DFT_osf)
+    N_PX_IMAGE: # the size of the detector image
+    BIN_IMAGE: # the binning factor of the detector image (the resolution of the detector frame is N_PX_IMAGE/BIN_IMAGE)
+    N_GS: # the number of guide stars
+    readOutNoiseRms: # the read-out noise rms [photo-electron]
+    noiseFactor: # the noise amplification factor
+    photoElectronGain: # the detector gain: throughtputxQEx...
+    exposureTime: # the frame exposure time [s]
   calibrate_args:
     threshold: # the lenslet illumination threshold (this apply solely to Shack-Hartmann sensors)
     ...: ... # arguments for the sensor calibrate method
 interaction matrices: 
   calibrations:
-    calibration name:  
+    <calibration name>:  
       method_id: # the calibration method: calibrate, AGWS_calibrate, NGAO_calibrate
       args: # the calibration method arguments
         mirror: #
@@ -276,6 +284,31 @@ interaction matrices:
   filename: # the filename where the calibration matrix is stored, if it exist it is loaded automatically
 ```
 
+## Edge sensors
+
+The edge sensor driver represents M1 edge sensors as modeled in CEO.
+
+```yaml
+driver:
+  outputs:
+    deltas:
+      size: 48
+```
+
+The associated parameter file is
+
+```yaml
+edge sensors:
+  error_1sig_per_m: 125.0e-09 # the edge sensor measurement noise (0.5micron/m at 95% confidence interval)
+interaction matrices: 
+  calibrations:
+    <calibration name>:
+      args:
+        stroke: #
+  pseudo_inverse:
+    n_threshold: # the number of truncated eigen values [list]
+  filename: # the filename where the calibration matrix is stored, if it exist it is loaded automatically
+```
 
 ## Controller driver
 

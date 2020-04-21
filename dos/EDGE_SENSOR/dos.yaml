@@ -1,0 +1,66 @@
+simulation:
+  sampling frequency: 500 # [Hertz]
+  duration: 1 # [seconds]
+  server:
+    IP: 127.0.0.1
+#    IP: 34.213.27.234
+drivers:
+  M1:
+    inputs:
+      Txyz:
+        size: [7,3]
+        logs:
+          decimation: 1
+      Rxyz:
+        size: [7,3]
+        logs:
+          decimation: 1
+  M1_ES:
+    outputs:
+      deltas:
+        size: 48
+        logs:
+          decimation: 1
+  ES2M1RBM:
+    server: false
+    inputs:
+      edge sensors:
+        lien: [M1_ES,deltas]
+    outputs:
+      M1RBM:
+        size: 42
+        logs:
+          decimation: 1
+  ES_controller:
+    server: false
+    inputs:
+      M1RBM:
+        lien: [ES2M1RBM,M1RBM]
+    shape: [7,6] 
+    split:
+      indices_or_sections: 2
+      axis: 1
+    outputs:
+      M1 Txyz:
+        lien: [M1,Txyz]
+        logs:
+          decimation: 1
+      M1 Rxyz:
+        lien: [M1,Rxyz]
+        logs:
+          decimation: 1
+  science:
+    outputs:
+      wfe_rms:
+        size: 1
+        logs:
+          decimation: 1
+      tiptilt:
+        size: 2
+        logs:
+          decimation: 1
+      segment_tiptilt:
+        size: 14
+        logs:
+          decimation: 1
+

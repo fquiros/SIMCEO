@@ -17,6 +17,8 @@ drivers:
       M2TT:
         sampling_rate: 1 # [sample]
         size: [7,2]
+        logs:
+          decimation: 1
       data:
         sampling_rate: 500 # [sample]
         size: 0

@@ -1,2 +1,3 @@
 wind loads:
-  cfd_case: case_10_0az_cd_12vel
+  cfd_case: case_1_0az_os_2vel_1
+  s3path: s3://gmto.starccm/StandardYear/20Hz #dos/FEM/

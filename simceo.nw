@@ -85,7 +85,6 @@ import sys
 import threading
 import time
 import zmq
-import ceo
 import numpy as np
 from collections import OrderedDict
 import os
@@ -127,13 +126,18 @@ class Timer(object):
             print('[%s]' % self.name)
         print('Elapsed time: %s' % (time.time() - self.tstart))
 
-<<CalibrationMatrix>>
-
 <<S-function>>
 
-<<SGMT>>
-<<SAtmosphere>>
-<<SOpticalPath>>
+try:
+    import ceo
+
+    <<CalibrationMatrix>>
+    <<SGMT>>
+    <<SAtmosphere>>
+    <<SOpticalPath>>
+    <<SEdgeSensors>>
+except ModuleNotFoundError:
+    print("WARNING: CEO is not available on that machine!")
 
 <<broker>>
 
@@ -182,8 +186,11 @@ class broker(threading.Thread):
         self.ops = []
         self.n_op = 0
         self.currentTime = 0.0
-        self.satm = SAtmosphere(self.ops,verbose=self.verbose)
-        self.sgmt = SGMT(self.ops, self.satm, verbose=self.verbose)
+        try:
+            self.satm = SAtmosphere(self.ops,verbose=self.verbose)
+            self.sgmt = SGMT(self.ops, self.satm, verbose=self.verbose)
+        except:
+            pass
 
     def __del__(self):
 
@@ -290,6 +297,10 @@ def __getitem__(self,key):
         if not hasattr(self,'winds'):
             self.winds = WindLoad()
         return self.winds
+    elif key=="EdgeSensors":
+        if not hasattr(self,'ses'):
+            self.ses = SEdgeSensors(self.sgmt.gmt)
+        return self.ses
     else:
         raise KeyError("Available keys are: GMT, ATM or OP")
 @ 
@@ -298,8 +309,11 @@ If the ID tag of the optical path is just \textbf{OP}, a new \emph{SOpticalPath}
 
 When the \emph{Terminate} method of an \emph{SOpticalPath} object is called, the object is removed from the optical path list \emph{ops}. 
 <<broker run details>>=
-if class_id[:2]=="OP" and method_id=="Terminate":
-    self.ops.pop(0)
+if method_id=="Terminate":
+    if class_id[:2]=="OP":
+        self.ops.pop(0)
+    elif class_id=="EdgeSensors":
+        delattr(self,'ses')
 @
 The value return by the method of the invoked object is sent back to the S--function:
 <<broker run details>>=
@@ -508,12 +522,12 @@ class SOpticalPath(Sfunction):
         self.idx = idx
         self.gmt = gmt
         self.atm = atm
-	self.sensor = None
+        self.sensor = None
 @ %def idx sensor
 \paragraph{Start}
 
 The message that triggers the call to the \emph{Start} method is
-<<SOpticalPath Start message>>=     
+<<SOpticalPath Start message>>=
 {
 "class_id": "OP",
 "method_id": "Start",
@@ -632,6 +646,13 @@ The message that triggers the call to the \emph{Outputs} method is
                 doutputs[element] = self[element]
         else:
             #+self.sensor
+            try:
+                self.sensor.camera.readOut(self.sensor.camera.exposureTime,
+                                           self.sensor.camera.readOutNoiseRms,
+                                           self.sensor.camera.nBackgroundPhoton,
+                                           self.sensor.camera.noiseFactor)
+            except:
+                pass
             self.sensor.process()
             doutputs = OrderedDict()
             for element in outputs:
@@ -643,27 +664,20 @@ and the dictionnary implementation is
 <<SOpticalPath>>=
     def __getitem__(self,key):
         if key=="wfe_rms":
-            return self.src.wavefront.rms(units_exponent=-6).tolist()
+            return self.src.wavefront.rms()
         elif key=="segment_wfe_rms":
-            return self.src.phaseRms(where="segments",
-                                     units_exponent=-6).tolist()
+            return self.src.phaseRms(where="segments")
         elif key=="piston":
-            return self.src.piston(where="pupil",
-                                   units_exponent=-6).tolist()
+            return self.src.piston(where="pupil")
         elif key=="segment_piston":
-            return self.src.piston(where="segments",
-                                   units_exponent=-6).tolist()
+            return self.src.piston(where="segments")
         elif key=="tiptilt":
-            buf = self.src.wavefront.gradientAverage(1,self.src.rays.L)
-            buf *= ceo.constants.RAD2ARCSEC
-            return buf.tolist()
+            return self.src.wavefront.gradientAverage(1,self.src.rays.L)
         elif key=="segment_tiptilt":
-            buf = self.src.segmentsWavefrontGradient().T
-            buf *= ceo.constants.RAD2ARCSEC
-            return buf.tolist()
+            return self.src.segmentsWavefrontGradient().T
         elif key=="ee80":
             #print "EE80=%.3f or %.3f"%(self.sensor.ee80(from_ghost=False),self.sensor.ee80(from_ghost=True))
-            return self.sensor.ee80(from_ghost=False).tolist()
+            return self.sensor.ee80(from_ghost=False)
         elif key=="PSSn":
             if self.pssn_data is None:
                 pssn , self.pssn_data = self.gmt.PSSn(self.src,save=True)
@@ -676,7 +690,7 @@ and the dictionnary implementation is
             return getattr(self.sensor,key)
         else:
             c = self.comm_matrix[key].dot( self.sensor.Data ).ravel()
-            return c.tolist()
+            return c
 @
 \paragraph{InitializeConditions}
 
@@ -824,7 +838,124 @@ The message that triggers a call to the \emph{InitializeConditions} method is
                 self.logger.info("Saving command matrix to database %s!",filename)
                 db[str(key)] = C
                 db.close()
-@ 
+@
+
+\subsubsection{The SEdgeSensors class}
+\label{sec:sedgesensors-classe}
+
+<<SEdgeSensors>>=
+class SEdgeSensors(Sfunction):
+
+    def __init__(self, gmt, verbose=logging.INFO):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.setLevel(verbose)
+        self.logger.info('Instantiate')
+        self.gmt = gmt
+
+    <<SEdgeSensor methods>>
+@
+\paragraph{Start}
+
+<<SEdgeSensor methods>>=
+def Start(self,**kwargs):
+    self.es = ceo.DistanceEdgeSensors(self.gmt.M1,**kwargs)
+    self.comm_matrix = {}
+    return "EdgeSensors"
+@
+\paragraph{Terminate}
+
+<<SEdgeSensor methods>>=
+def Terminate(self,*args,**kwargs): 
+    self.logger.info("EdgeSensors deleted")
+    del(self.es)
+    return "EdgeSensors deleted!"
+@
+\paragraph{Update}
+
+<<SEdgeSensor methods>>=
+def Update(self,*args,**kwargs): 
+    self.es.data()
+@
+\paragraph{Outputs}
+
+<<SEdgeSensor methods>>=
+def Outputs(self,outputs=['deltas']):
+    return {outputs[0]:self.es.d}
+@
+\paragraph{InitializeConditions}
+
+<<SEdgeSensor methods>>=
+def Init(self,
+         calibrations=None,
+         filename=None,
+         pseudo_inverse={}):
+    self.logger.info('INIT')
+
+    state0 = self.gmt.state
+    self.gmt.reset()
+    (self.gmt)^=state0
+
+    error_1sig_per_m = self.es.error_1sig_per_m
+    self.es.error_1sig_per_m = 0.0
+    self.es.calibration()
+    self.es.error_1sig_per_m = error_1sig_per_m
+
+    if filename is not None:
+        filepath = os.path.join(SIMCEOPATH,"calibration_dbs",filename)
+        db = shelve.open(filepath)
+
+        if os.path.isfile(filepath+".dir"):
+            self.logger.info("Loading command matrix from existing database %s!",filename)
+            for key in db:
+                C = db[key]
+                self.comm_matrix[key] = C
+                db[key] = C
+            db.close()
+            return
+
+    with Timer():
+        for key in calibrations: # Through calibrations
+            self.logger.info('Calibrating: %s',key)
+            calibs = calibrations[key]
+            print('calibs',calibs)
+            stroke = calibs['args']['stroke']
+            state0 = self.gmt.state
+            self.gmt.reset()
+            error_1sig_per_m = self.es.error_1sig_per_m
+            self.es.error_1sig_per_m = 0.0
+            De = []
+            for mirror in ['M1']:
+                for seg in range(6):
+                    print(seg,end='')
+                    for mode in ['Txyz','Rxyz']:
+                        print(mode,end='')
+                        for axis in range(3):
+                            print(axis,end='')
+                            self.gmt.reset()
+                            state = self.gmt.state
+                            state[mirror][mode][seg,axis] = stroke
+                            (self.gmt)^=state
+                            self.es.data()
+                            dp = self.es.d
+                            self.gmt.reset()
+                            state = self.gmt.state
+                            state[mirror][mode][seg,axis] = -stroke
+                            (self.gmt)^=state
+                            self.es.data()
+                            dm = self.es.d
+                            De += [0.5*(dp-dm)]
+                    print('')
+            De = np.hstack(De)/stroke
+            print('pseudo_inverse',pseudo_inverse)
+            C = ceo.CalibrationVault([De],**pseudo_inverse)
+            (self.gmt)^=state0
+            self.es.error_1sig_per_m = error_1sig_per_m
+
+            if filename is not None:
+                self.logger.info("Saving command matrix to database %s!",filename)
+                db[str(key)] = C
+                db.close()
+@
 
 \subsection{The CalibrationMatrix class}
 \label{sec:calibr-class}
@@ -957,9 +1088,9 @@ A [[dos]] simulation is defined with a parameter file [[dos.yaml]].
 <<dos simulation section>>
 <<dos drivers section>>
 <<init.py>>=
-from . import mpc_driver
 from . import control
 from . import driver
+from . import tools
 from .dos import DOS, Logs
 @
 \subsection{Simulation}
@@ -1159,9 +1290,11 @@ for k_d in self.drivers:
     try:
         with open(device+'.yaml') as f:
             prm = yaml.load(f)
-    except:
+    except FileNotFoundError:
         with open(device+'.pickle','rb') as f:
             prm = pickle.load(f)
+    except:
+        raise
     d.associate(prm)
 @
 The device parameter are formatted into messages that will be used to
@@ -1198,6 +1331,11 @@ def associate(self,prm):
         self.msg['class_id'] = 'WindLoad'
         self.msg_args['Start'].update(prm['wind loads'])
         self.msg_args['Start'].update({'fs':1/self.tau})
+        self.msg_args['Outputs']['outputs'] += [k_o for k_o in self.outputs]
+    elif 'edge sensors' in prm:
+        self.msg['class_id'] = 'EdgeSensors'
+        self.msg_args['Start'].update(prm['edge sensors'])
+        self.msg_args['Init'].update(prm['interaction matrices'])
         self.msg_args['Outputs']['outputs'] += [k_o for k_o in self.outputs]
     elif 'source' in prm:
         self.msg['class_id'] = 'OP'
@@ -1263,6 +1401,8 @@ and [[init]] methods:
 self.__init = map(lambda x: x.init(), self.drivers.values())
 <<initializing the simulation>>=
 def init(self):
+    if not self.pushed:
+        self.push()
     self.logger.info('Initializing')
     list(self.__init)
     self.initialized = True
@@ -1276,6 +1416,7 @@ def stepping(self):
     v = self.drivers.values()
     for l in range(self.N_SAMPLE):
         self.logger.debug('Step #%d',l)
+        self.__k_step = l
         yield [x.update(l) for x in v] + [x.output(l) for x in v]
 <<running the simulation>>=
 def run(self):
@@ -1285,9 +1426,11 @@ def run(self):
         self.init()
     self.logger.info('Running')
     with Timer():
-        for self.__k_step in range(self.N_SAMPLE):
-            next(self.step)
-    self.terminate()
+        try:
+            while True:
+                next(self.step)
+        except StopIteration:
+            self.terminate()
 def _run_(self):
     if not self.pushed:
         self.push()
@@ -1438,14 +1581,18 @@ self.logger = logging.getLogger(tag)
 self.logger.setLevel(verbose)
 self.delay         = delay
 self.sampling_rate = sampling_rate
-self.inputs        = {}
-if 'inputs' in kwargs:
-    for k,v in kwargs['inputs'].items():
+self.inputs       = {}
+try:
+    for k in kwargs['inputs']:
+        v = kwargs['inputs'][k]
         self.logger.info('New input: %s',k)
         self.inputs[k] = Input(k,**v)
+except KeyError:
+    self.logger.info('No inputs!')
 self.outputs       = {}
-if 'outputs' in kwargs:
-    for k,v in kwargs['outputs'].items():
+try:
+    for k in kwargs['outputs']:
+        v = kwargs['outputs'][k]
         self.logger.info('New output: %s',k)
         if not 'sampling_rate' in v:
             v['sampling_rate']=self.sampling_rate
@@ -1464,6 +1611,16 @@ if 'outputs' in kwargs:
             v['logs'] = logs.entries[tag][k]
             self.logger.info('Output logged in!')
         self.outputs[k] = Output(k,**v)
+except KeyError:
+    self.logger.info('No inputs!')
+try:
+    self.shape = kwargs['shape']
+except KeyError:
+    self.shape = None
+try:
+    self.split = kwargs['split']
+except KeyError:
+    self.split = {'indices_or_sections':1,'axis':0}
 @
 @ %def Server       
 The inherited [[Server]] method are:
@@ -1561,23 +1718,30 @@ def init(self):
     self.logger.debug('Initializing!')
     self.system.init()
 def update(self,step):
-    if step>=self.delay and (step-self.delay)%self.sampling_rate==0:
+    if self.inputs and (step>=self.delay and (step-self.delay)%self.sampling_rate==0):
         self.logger.debug('Updating!')
         u = np.hstack([_.data.reshape(1,-1) for _  in self.inputs.values()])
         self.system.update(u)
-        self.logger.debug('u: %s',u)
+        self.logger.debug('u: %s',u.shape)
 
 def output(self,step):
     if step>=self.delay:
         a = 0
         b = 0
+        data = self.system.output().reshape(self.shape)
+        self.logger.debug('Output shape: %s', data.shape)
+        self.logger.debug('Splitting output: %s',self.split)
+        data = np.split( data , **self.split)
         for k,v in self.outputs.items():
             if (step-self.delay)%v.sampling_rate==0:
-                self.logger.debug('Outputing %s!',k)
+                self.logger.debug('Outputing %s [%s]!',k,data[0].shape)
+                v.data[...] = data.pop(0).reshape(v.size)
+                """
                 b = a + v.data.size
                 self.logger.debug('%s [%s]: [%d,%d]',k,v.size,a,b)
                 v.data[...] = self.system.output()[0,a:b].reshape(v.size)
                 a = b
+                """
                 if v.logs is not None and (step-self.delay)%v.logs.decimation==0:
                     self.logger.debug('LOGGING')
                     v.logs.add(v.data.copy())
@@ -1590,39 +1754,36 @@ def terminate(self):
 \paragraph{System}
 
 <<driver imports>>=
-from . import control
+from dos import control
 @
 <<control.py>>=
 <<control imports>>
-from .mpc_driver import MPC
-from .MountController import Mount
+from .sh_aco_qp_driver import SHAcO_qp
+from dos.MountController import Mount
+from dos.source import Source
 import numpy as np
 class System:
     def __init__(self,**kwargs):
-        if 'transfer function' in kwargs:
-            self.system = signal.dlti(kwargs['transfer function']['num'],
-                                      kwargs['transfer function']['denom'])
-        elif 'zeros poles gain' in kwargs:
-            self.system = signal.dlti(kwargs['transfer function']['zeros'],
-                                      Kwargs['transfer function']['poles'],
-                                      kwargs['transfer function']['gain'])
-        else:
-            raise Exception("System should be of the type "+\
-                            "'transfer function' or 'zeros poles gains'")
+        self.system = signal.dlti(*tuple(kwargs['parameters'].values()))
         self.__xout = np.zeros(0)
         self.__yout = np.zeros(0)
 
     def init(self):
         self.system = self.system._as_ss()
-        self.__xout = np.zeros((1,self.system.A.shape[0]))
-        self.__yout = np.zeros((1, self.system.C.shape[0]))
+        self.__xout = np.zeros((self.system.A.shape[1],1))
+        self.__yout = np.zeros((self.system.C.shape[0],1))
 
     def update(self,u):
-        self.__yout = np.dot(self.system.C, self.__xout) + np.dot(self.system.D, u)
-        self.__xout = np.dot(self.system.A, self.__xout) + np.dot(self.system.B, u)
+        try:
+            self.__yout = self.system.C @ self.__xout + self.system.D @ u
+            self.__xout = self.system.A @ self.__xout + self.system.B @ u
+        except ValueError:
+            u = u.reshape(self.system.B.shape[1],1)
+            self.__yout = self.system.C @ self.__xout + self.system.D @ u
+            self.__xout = self.system.A @ self.__xout + self.system.B @ u
 
     def output(self):
-        return self.__yout
+        return np.atleast_2d(self.__yout.ravel())
 @
 
 \subsubsection{Atmosphere}
@@ -1673,10 +1834,12 @@ class Entry:
     def add(self,value):
         self.data += [value]
     @property
+    def time(self):
+        return (np.arange(len(self.data))*self.decimation+self.delay)*self.tau
+    @property
     def timeSeries(self):
-        time   = (np.arange(len(self.data))*self.decimation+self.delay)*self.tau
         values = np.vstack(self.data) if self.data[0].ndim<2 else np.dstack(self.data)
-        return time,values
+        return self.time,values
 class Logs:
     def __init__(self,sampling_time=0,logs_repo=''):
         self.sampling_time = sampling_time
@@ -1707,8 +1870,8 @@ class Logs:
         data.update(self.entries)
         with open(filename,'wb') as f:
             pickle.dump(data,f)
-    def load(self):
-        filename = os.path.join(self.logs_repo,'logs.pickle')
+    def load(self,logs_name='logs.pickle'):
+        filename = os.path.join(self.logs_repo,logs_name)
         with open(filename,'rb') as f:
             data = pickle.load(f)
         self.sampling_time = data['sampling_time']

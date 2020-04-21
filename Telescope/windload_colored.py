@@ -176,7 +176,8 @@ class WindLoad:
                       'GIR','C-Ring',
                       'M1','M2'],
               inputs_version=0,
-              M2type='PDR'):
+              M2type='PDR',
+              time_range=[]):
         self.logger.info('Start')
 
         self.state['fs'] = fs
@@ -184,22 +185,35 @@ class WindLoad:
         if not (len(groups)==1 and 'M1TransientWind' in groups):
 
             self.logger.info('Loading CFD forces and moments from {0} @ {1}'.format(cfd_case,s3path))
-            time_switch = 1800
-            case_id = cfd_case.split('_')[1]
-            if case_id in list('123')+['17','18','19']:
-                time_switch = 4000
-            elif case_id in ['13','14']:
-                time_switch = 1400
-            elif case_id in ['16']:
-                time_switch = 2200
-            df = pd.read_csv('{0}/{1}/FORCES.txt'.format(s3path,cfd_case))
-            df.rename(index=str,
-                          columns={'Force Truss Top  2  y Monitor: Force (N)':
-                                   'Force Truss Top 2  y Monitor: Force (N)'},
-                          inplace=True)
-            forces = df[df['Physical Time: Physical Time (s)']>=time_switch]
-            df = pd.read_csv('{0}/{1}/MOMENTS.txt'.format(s3path,cfd_case))
-            moments = df[df['Physical Time: Physical Time (s)']>=time_switch]
+
+            if time_range:
+                df = pd.read_csv('{0}/{1}/FORCES.txt'.format(s3path,cfd_case))
+                df.rename(index=str,
+                              columns={'Force Truss Top  2  y Monitor: Force (N)':
+                                       'Force Truss Top 2  y Monitor: Force (N)'},
+                              inplace=True)
+                forces = df[df['Physical Time: Physical Time (s)'].between(*time_range)]
+                df = pd.read_csv('{0}/{1}/MOMENTS.txt'.format(s3path,cfd_case))
+                moments = df[df['Physical Time: Physical Time (s)'].between(*time_range)]
+            else:
+                time_switch = 1800
+                case_id = cfd_case.split('_')[1]
+                if case_id in list('123')+['17','18','19']:
+                    time_switch = 4000
+                elif case_id in ['13','14']:
+                    time_switch = 1400
+                elif case_id in ['16']:
+                    time_switch = 2200
+                df = pd.read_csv('{0}/{1}/FORCES.txt'.format(s3path,cfd_case))
+                df.rename(index=str,
+                              columns={'Force Truss Top  2  y Monitor: Force (N)':
+                                       'Force Truss Top 2  y Monitor: Force (N)'},
+                              inplace=True)
+                forces = df[df['Physical Time: Physical Time (s)']>=time_switch]
+                df = pd.read_csv('{0}/{1}/MOMENTS.txt'.format(s3path,cfd_case))
+                moments = df[df['Physical Time: Physical Time (s)']>=time_switch]
+
+            self.logger.info(f'Forces and moments sample # {forces.shape[0]}')
 
         interp_method = 'linear'
 
@@ -212,6 +226,29 @@ class WindLoad:
                 F = np.vstack([forces['Force Top End {0} Monitor: Force (N)'.format(x)] for x in list('xyz')]).T
                 M = np.vstack([moments['Moment Top End {0} Monitor: Moment (N-m)'.format(x)] for x in list('xyz')]).T
                 FM_IM = cfd2fem(F,M,FEM_nodes['top-end'])
+                self.state['Groups'][input] = {'u':None,'y':None}
+                self.state['Groups'][input]['u'] = add_colored_noise(FM_IM,fs,windload_fs)
+                self.logger.info("['{}']".format(input))
+
+            if 'mount.top-end' in groups:
+                self.logger.info(' . top-end loading: ')
+                F = np.vstack([forces['Force Top End {0} Monitor: Force (N)'.format(x)] for x in list('xyz')]).T
+                M = np.vstack([moments['Moment Top End {0} Monitor: Moment (N-m)'.format(x)] for x in list('xyz')]).T
+                FM_IM = cfd2fem(F,M,FEM_nodes['top-end'])
+
+                self.logger.info(' . M2 cell loading: ')
+                F = np.vstack([forces['Force M2_cell {0} Monitor: Force (N)'.format(x)] for x in list('xyz')]).T
+                M = np.vstack([moments['Moment M2_cell {0} Monitor: Moment (N-m)'.format(x)] for x in list('xyz')]).T
+                FM_IM += cfd2fem(F,M,FEM_nodes['M2 cell'])
+
+                self.logger.info(' . M2 mirror loading: ')
+                for k in range(7):
+                    l = (k+1)%7
+                    F = np.vstack([forces['Force M2_{1:d} {0} Monitor: Force (N)'.format(x,l)] for x in list('xyz')]).T
+                    M = np.vstack([moments['Moment M2_{1:d} {0} Monitor: Moment (N-m)'.format(x,l)] for x in list('xyz')]).T
+                    FM_IM += cfd2fem(F,M,FEM_nodes['M2'][k])
+
+                input = 'mount.top-end'
                 self.state['Groups'][input] = {'u':None,'y':None}
                 self.state['Groups'][input]['u'] = add_colored_noise(FM_IM,fs,windload_fs)
                 self.logger.info("['{}']".format(input))
@@ -315,6 +352,45 @@ class WindLoad:
                     F = np.vstack([forces['Force M1_{1:d} {0} Monitor: Force (N)'.format(x,l)] for x in list('xyz')]).T
                     M = np.vstack([moments['Moment M1_{1:d} {0} Monitor: Moment (N-m)'.format(x,l)] for x in list('xyz')]).T
                     FM_IM += [add_colored_noise(cfd2fem(F,M,FEM_nodes['M1'][k],R),fs,windload_fs)]
+                self.state['Groups'][input] = {'u':None,'y':None}
+                self.state['Groups'][input]['u'] = np.dstack(FM_IM)
+                self.logger.info("['{}']".format(input))
+
+            if 'mount.M1' in groups:
+                self.logger.info(' . GIR loading: ')
+                F = np.vstack([forces['Force GIR {0} Monitor: Force (N)'.format(x)] for x in list('xyz')]).T
+                M = np.vstack([moments['Moment GIR 1 {0} Monitor: Moment (N-m)'.format(x)] for x in list('xyz')]).T
+                FM_IM_x = cfd2fem(F,M,FEM_nodes['GIR'])
+
+                self.logger.info(' . C-Ring loading: ')
+                for k,e in enumerate(['','+','-']):
+                    F = np.vstack([forces['Force C Ring{1} {0} Monitor: Force (N)'.format(x,e)] for x in list('xyz')]).T
+                    M = np.vstack([moments['Moment C Ring{1}  {0} Monitor: Moment (N-m)'.format(x,e)] for x in list('xyz')]).T
+                    FM_IM_x += cfd2fem(F,M,FEM_nodes['C-Ring'][k])
+
+                self.logger.info(' . M1 cell loading: ')
+                F = np.vstack([forces['Force M1_cell {0} Monitor: Force (N)'.format(x)] for x in list('xyz')]).T
+                M = np.vstack([moments['Moment M1_cell {0} Monitor: Moment (N-m)'.format(x)] for x in list('xyz')]).T
+                FM_IM_x += cfd2fem(F,M,FEM_nodes['M1'][k])
+
+                FM_IM_x/=7
+                F_IM_x = FM_IM_x[:,:3]
+                M_IM_x = FM_IM_x[:,3:]
+
+                self.logger.info(' . M1 mirror loading: ')
+                FM_IM = []
+                R1 = Rx(-13.601685)
+                for k in range(7):
+                    l = (k+1)%7
+                    if k<6:
+                        R = R1@Rz(k*60)
+                    else:
+                        R = np.eye(3)
+                    F = np.vstack([forces['Force M1_{1:d} {0} Monitor: Force (N)'.format(x,l)] for x in list('xyz')]).T
+                    M = np.vstack([moments['Moment M1_{1:d} {0} Monitor: Moment (N-m)'.format(x,l)] for x in list('xyz')]).T
+                    FM_IM += [add_colored_noise(cfd2fem(F+F_IM_x,M+M_IM_x,FEM_nodes['M1'][k],R),fs,windload_fs)]
+
+                input = 'mount.M1'
                 self.state['Groups'][input] = {'u':None,'y':None}
                 self.state['Groups'][input]['u'] = np.dstack(FM_IM)
                 self.logger.info("['{}']".format(input))

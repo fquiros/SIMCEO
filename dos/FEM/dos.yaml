@@ -1,6 +1,6 @@
 simulation:
   sampling frequency: 2000 # [Hertz]
-  duration: 10 # [seconds]
+  duration: 300 # [seconds]
   server:
     IP: 127.0.0.1
 #    IP: 34.213.27.234
@@ -28,7 +28,7 @@ drivers:
       OSS_ElDrive_F:
         size: 8
       OSS_GIRDrive_F:
-        isze: 4
+        size: 4
       OSS_M1_lcl_6F:
         size: 42
       OSS_Cell_lcl_6F:
@@ -58,7 +58,10 @@ drivers:
         size: 42
         logs:
           decimation: 1
-COMMENTS:
+      OSS_Truss_6d:
+        size: 36
+        logs:
+          decimation: 1
   Mount:
     server: false
     inputs:
@@ -68,6 +71,9 @@ COMMENTS:
           lien: [FEM,OSS_ElDrive_D]
       OSS_GIRDrive_D:
         lien: [FEM,OSS_GIRDrive_D]
+    split:
+      indices_or_sections: [8,16]
+      axis: 1
     outputs:
       OSS_AzDrive_F:
         lien: [FEM,OSS_AzDrive_F]

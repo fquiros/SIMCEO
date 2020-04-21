@@ -1,0 +1,62 @@
+simulation:
+  sampling frequency: 2000 # [Hertz]
+  duration: 400 # [seconds]
+  server:
+    IP: 127.0.0.1
+#    IP: 34.213.27.234
+drivers:
+  wind_loads:
+    outputs:
+      OSS_TopEnd_6F:
+        lien: [FEM,OSS_TopEnd_6F]
+      OSS_Truss_6F:
+        lien: [FEM,OSS_Truss_6F]
+      OSS_GIR_6F:
+        lien: [FEM,OSS_GIR_6F]
+      OSS_CRING_6F:
+        lien: [FEM,OSS_CRING_6F]
+      OSS_Cell_lcl_6F:
+        lien: [FEM,OSS_Cell_lcl_6F]
+      OSS_M1_lcl_6F:
+        lien: [FEM,OSS_M1_lcl_6F]
+      MC_M2_lcl_force_6F:
+        lien: [FEM,MC_M2_lcl_force_6F]
+  FEM:
+    inputs:
+      OSS_M1_lcl_6F:
+        size: 42
+        logs:
+          decimation: 1
+      OSS_Cell_lcl_6F:
+        size: 42
+        logs:
+          decimation: 1
+      OSS_CRING_6F:
+        size: 18
+        logs:
+          decimation: 1
+      OSS_TopEnd_6F:
+        size: 6
+        logs:
+          decimation: 1
+      OSS_GIR_6F:
+        size: 6
+        logs:
+          decimation: 1
+      OSS_Truss_6F:
+        size: 36
+        logs:
+          decimation: 1
+      MC_M2_lcl_force_6F:
+        size: 42
+        logs:
+          decimation: 1
+    outputs:
+      OSS_M1_lcl:
+        size: 42
+        logs:
+          decimation: 1
+      MC_M2_lcl_6D:
+        size: 42
+        logs:
+          decimation: 1
